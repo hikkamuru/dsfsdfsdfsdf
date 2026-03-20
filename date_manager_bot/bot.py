@@ -1,286 +1,89 @@
 """
-Менеджер Свидания - Telegram Bot
+Date Manager Bot - Telegram Bot
 """
-
 import telebot
 import logging
 import sys
-import os
-import random
-from datetime import datetime
-from config import BOT_TOKEN, HER_NAME, HIS_NAME, PHOTOS_DIR, LOCATIONS
+
+from config import BOT_TOKEN, LOCATIONS
+from handlers.commands import (
+    handle_start, handle_back, handle_location,
+    handle_dress_code, handle_bonus, handle_ticket,
+    handle_echo, handle_location_selected
+)
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('date_manager.log', encoding='utf-8')
-    ]
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.FileHandler('bot.log', encoding='utf-8')]
 )
 
 logger = logging.getLogger(__name__)
 bot = telebot.TeleBot(BOT_TOKEN)
-
 user_data = {}
 
 
-def get_random_photo():
-    photos = [f for f in os.listdir(PHOTOS_DIR) if f.endswith(('.jpg', '.png', '.jpeg'))]
-    return os.path.join(PHOTOS_DIR, random.choice(photos)) if photos else None
-
-
-def get_photo_by_number(num):
-    path = os.path.join(PHOTOS_DIR, f"{num}.jpg")
-    return path if os.path.exists(path) else get_random_photo()
-
-
-def send_photo_with_text(chat_id, text, photo=None, reply_markup=None, parse_mode='Markdown'):
-    if photo:
-        try:
-            with open(photo, 'rb') as f:
-                bot.send_photo(chat_id, f, caption=text, parse_mode=parse_mode, reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(f"Photo error: {e}")
-            bot.send_message(chat_id, text, parse_mode=parse_mode, reply_markup=reply_markup)
-    else:
-        bot.send_message(chat_id, text, parse_mode=parse_mode, reply_markup=reply_markup)
-
-
-def main_menu_keyboard():
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2, selective=True)
+def register_handlers():
+    """Регистрация всех обработчиков"""
     
-    buttons = [
-        telebot.types.KeyboardButton("📍 Локация"),
-        telebot.types.KeyboardButton("👗 Дресс-код"),
-        telebot.types.KeyboardButton("🎁 Бонус"),
-        telebot.types.KeyboardButton("🎫 Билет"),
-        telebot.types.KeyboardButton("💕 Главное меню")
-    ]
+    @bot.message_handler(commands=['start'])
+    def cmd_start(msg):
+        handle_start(bot, msg)
     
-    keyboard.add(*buttons[:2])
-    keyboard.add(*buttons[2:4])
-    keyboard.add(buttons[4])
+    @bot.message_handler(func=lambda m: m.text in ["⬅️ Назад", "💕 Главное меню"])
+    def cmd_back(msg):
+        handle_back(bot, msg)
     
-    return keyboard
-
-
-def back_keyboard():
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
-    keyboard.add(telebot.types.KeyboardButton("⬅️ Назад"))
-    return keyboard
-
-
-@bot.message_handler(commands=['start'])
-def welcome(message):
-    chat_id = message.chat.id
-    user_data[chat_id] = {}
+    @bot.message_handler(func=lambda m: m.text == "📍 Локация")
+    def cmd_location(msg):
+        handle_location(bot, msg)
     
-    photo = get_random_photo()
-    welcome_text = f"""💕 *Привет, {HER_NAME}!*
-
-Я — твой персональный менеджер свидания!
-Давай спланируем наш идеальный вечер ✨
-
-━━━━━━━━━━━━━━━━━━━━━━
-📍 Выбрать локацию
-👗 Дресс-код  
-🎁 Секретный бонус
-🎫 Получить билет
-━━━━━━━━━━━━━━━━━━━━━━"""
-
-    send_photo_with_text(chat_id, welcome_text, photo, main_menu_keyboard())
-
-
-@bot.message_handler(func=lambda m: m.text == "⬅️ Назад" or m.text == "💕 Главное меню")
-def back_to_main(message):
-    chat_id = message.chat.id
+    @bot.message_handler(func=lambda m: m.text == "☕ Кофейня")
+    def cmd_coffee(msg):
+        handle_location_selected(bot, msg, "☕ Уютная кофейня")
     
-    photo = get_random_photo()
-    menu_text = f"""💕 *Главное меню*
-
-Выбери, что хочешь настроить:
-"""
-
-    send_photo_with_text(chat_id, menu_text, photo, main_menu_keyboard())
-
-
-@bot.message_handler(func=lambda m: m.text == "📍 Локация")
-def location_handler(message):
-    chat_id = message.chat.id
+    @bot.message_handler(func=lambda m: m.text == "🌳 Парк")
+    def cmd_park(msg):
+        handle_location_selected(bot, msg, "🌳 Парк")
     
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
-    keyboard.add(telebot.types.KeyboardButton("☕ Кофейня"))
-    keyboard.add(telebot.types.KeyboardButton("🌳 Парк"))
-    keyboard.add(telebot.types.KeyboardButton("✨ Необычное место"))
-    keyboard.add(telebot.types.KeyboardButton("⬅️ Назад"))
+    @bot.message_handler(func=lambda m: m.text == "✨ Необычное место")
+    def cmd_secret(msg):
+        handle_location_selected(bot, msg, "✨ Секретное место")
     
-    photo = get_random_photo()
-    text = f"""📍 *Выбери локацию*
-
-Где мы проведём наш вечер?
-"""
+    @bot.message_handler(func=lambda m: m.text == "👗 Дресс-код")
+    def cmd_dress(msg):
+        handle_dress_code(bot, msg)
     
-    send_photo_with_text(chat_id, text, photo, keyboard)
-
-
-@bot.message_handler(func=lambda m: m.text == "☕ Кофейня")
-def coffee_selected(message):
-    chat_id = message.chat.id
-    user_data[chat_id]['location'] = "☕ Уютная кофейня"
+    @bot.message_handler(func=lambda m: m.text == "🎁 Бонус")
+    def cmd_bonus(msg):
+        handle_bonus(bot, msg)
     
-    photo = get_photo_by_number(random.randint(1, 8))
-    text = f"""☕ *Кофейня выбрана!*
-
-Как насчёт ароматного капучино 
-в тёплой атмосфере? 
-
-💫 Записала в план!"""
-
-    send_photo_with_text(chat_id, text, photo, main_menu_keyboard())
-
-
-@bot.message_handler(func=lambda m: m.text == "🌳 Парк")
-def park_selected(message):
-    chat_id = message.chat.id
-    user_data[chat_id]['location'] = "🌳 Парк"
+    @bot.message_handler(func=lambda m: m.text == "🎫 Билет")
+    def cmd_ticket(msg):
+        handle_ticket(bot, msg)
     
-    photo = get_photo_by_number(random.randint(1, 8))
-    text = f"""🌳 *Парк выбран!*
-
-Прогулка под звёздами — 
-что может быть романтичнее?
-
-💫 Записала в план!"""
-
-    send_photo_with_text(chat_id, text, photo, main_menu_keyboard())
-
-
-@bot.message_handler(func=lambda m: m.text == "✨ Необычное место")
-def secret_selected(message):
-    chat_id = message.chat.id
-    user_data[chat_id]['location'] = "✨ Секретное место"
+    @bot.message_handler(func=lambda m: m.text == "🎫 Ещё билет")
+    def cmd_another_ticket(msg):
+        handle_ticket(bot, msg)
     
-    photo = get_photo_by_number(random.randint(1, 8))
-    text = f"""✨ *Секретное место!*
-
-Специальное место... 
-Поверь, тебе понравится! 💕
-
-💫 Записала в план!"""
-
-    send_photo_with_text(chat_id, text, photo, main_menu_keyboard())
-
-
-@bot.message_handler(func=lambda m: m.text == "👗 Дресс-код")
-def dress_code_handler(message):
-    chat_id = message.chat.id
-    
-    photo = get_photo_by_number(random.randint(1, 8))
-    text = f"""👗 *Дресс-код*
-
-Надень то, в чём тебе удобно 
-и комфортно...
-
-Я всё равно буду смотреть 
-только в твои глаза 💕"""
-
-    send_photo_with_text(chat_id, text, photo, main_menu_keyboard())
-
-
-@bot.message_handler(func=lambda m: m.text == "🎁 Бонус")
-def bonus_handler(message):
-    chat_id = message.chat.id
-    
-    photo = get_photo_by_number(random.randint(1, 8))
-    text = f"""🎁 *Секретный бонус активирован!*
-
-Теперь при встрече ты 
-обязана поцеловать меня 
-в щёчку 💋
-
-*Шутка!* 
-(Или нет... 😏)"""
-
-    send_photo_with_text(chat_id, text, photo, main_menu_keyboard())
-
-
-@bot.message_handler(func=lambda m: m.text == "🎫 Билет")
-def ticket_handler(message):
-    chat_id = message.chat.id
-    now = datetime.now()
-    
-    location = user_data.get(chat_id, {}).get('location', "✨ Секретное место")
-    
-    photo = get_photo_by_number(random.randint(1, 8))
-    text = f"""🎫 *БИЛЕТ НА СВИДАНИЕ* 🎫
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-👫 *Участники:*
-{HIS_NAME} 💕 {HER_NAME}
-
-📅 *Дата:* {now.strftime('%d.%m.%Y')}
-🕐 *Время:* 19:00
-📍 *Место:* {location}
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-✨ *Особые отметки:*
-• Обязательно улыбаться!
-• Секретный бонус активен
-• Ждём невероятный вечер!
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-🎟️ *Действителен при предъявлении 
-хорошего настроения* 💕"""
-
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
-    keyboard.add(telebot.types.KeyboardButton("🎫 Ещё билет"))
-    keyboard.add(telebot.types.KeyboardButton("💕 Главное меню"))
-    
-    send_photo_with_text(chat_id, text, photo, keyboard)
-
-
-@bot.message_handler(func=lambda m: m.text == "🎫 Ещё билет")
-def another_ticket(message):
-    ticket_handler(message)
-
-
-@bot.message_handler(func=lambda message: True)
-def echo(message):
-    if message.text and message.text.startswith('/'):
-        return
-    
-    photo = get_random_photo()
-    responses = [
-        "Я здесь, чтобы планировать наше свидание! 💕",
-        "Давай лучше спланируем вечер? ✨",
-        "Наше свидание ждёт! 💫"
-    ]
-    
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
-    keyboard.add(telebot.types.KeyboardButton("💕 Главное меню"))
-    
-    send_photo_with_text(message.chat.id, random.choice(responses), photo, keyboard)
+    @bot.message_handler(func=lambda m: True)
+    def cmd_echo(msg):
+        if msg.text and not msg.text.startswith('/'):
+            handle_echo(bot, msg)
 
 
 def main():
-    try:
-        if BOT_TOKEN == 'YOUR_BOT_TOKEN_HERE':
-            logger.error("❌ Установите токен бота в .env!")
-            return
-        
-        logger.info(f"🎉 Менеджер Свидания запущен!")
-        logger.info(f"Для {HER_NAME} от {HIS_NAME} 💕")
-        
-        bot.infinity_polling(timeout=10, long_polling_timeout=5)
-        
-    except KeyboardInterrupt:
-        logger.info("\n🛑 Бот остановлен")
-    except Exception as e:
-        logger.error(f"❌ Ошибка: {e}")
+    if not BOT_TOKEN:
+        logger.error("Установите BOT_TOKEN в .env!")
         sys.exit(1)
+    
+    register_handlers()
+    logger.info("Бот запущен!")
+    
+    try:
+        bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    except KeyboardInterrupt:
+        logger.info("Бот остановлен")
 
 
 if __name__ == '__main__':

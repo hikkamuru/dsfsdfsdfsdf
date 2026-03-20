@@ -1,25 +1,17 @@
-# Менеджер Свидания - Configuration
-
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
+BOT_TOKEN = os.getenv('BOT_TOKEN', '')
+HER_NAME = os.getenv('HER_NAME', 'Арина')
+HIS_NAME = os.getenv('HIS_NAME', 'Никита')
 
-HER_NAME = "Арина"
-HIS_NAME = "Никита"
-
-PHOTOS_DIR = os.path.join(os.path.dirname(__file__), 'photos')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PHOTOS_DIR = os.path.join(BASE_DIR, 'photos')
 
 LOCATIONS = [
     ("☕ Уютная кофейня", "Как насчёт ароматного капучино в тёплой атмосфере?"),
     ("🌳 Парк", "Прогулка под звёздами — что может быть романтичнее?"),
-    ("✨ Что-то необычное", "Секретное место... поверь, тебе понравится!")
+    ("✨ Секретное место", "Специальное место... поверь, тебе понравится!")
 ]
-
-LOCATIONS_PHOTOS = {
-    0: "coffee.jpg",
-    1: "park.jpg", 
-    2: "secret.jpg"
-}
